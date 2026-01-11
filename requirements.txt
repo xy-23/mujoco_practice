@@ -1,0 +1,4 @@
+mujoco
+pyside6
+scipy
+sympy
