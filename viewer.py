@@ -45,6 +45,13 @@ class Viewer(QOpenGLWindow):
     ):
         super().__init__()
 
+        self._w = None
+        self._h = None
+        self._s = None
+        self._pos = None
+        self.sim_running = False
+        self.sim_thread = None
+
         self.model = model
         self.data = data
         self.opt = mj.MjvOption()
@@ -52,22 +59,15 @@ class Viewer(QOpenGLWindow):
         self.cam = mj.MjvCamera()
         mj.mjv_defaultFreeCamera(model, self.cam)
 
-        interval = 1000 // fps
-        self.interval = interval / 1e3
-
-        self.timer = QTimer(interval=interval)
-        self.timer.timeout.connect(self.update)  # this will call paintGL()
-        self.timer.start()
-
-        self.time = 0
-        self.sim_running = False
-        self.sim_thread = None
-
         self.step_per_ctrl = step_per_ctrl
         self.ctrl = ctrl
         self.draw = draw
         self.key_press = key_press
         self.key_release = key_release
+
+        self.timer = QTimer(interval=1000 // fps)
+        self.timer.timeout.connect(self.update)  # this will call paintGL()
+        self.timer.start()
 
     @override
     def mousePressEvent(self, event: QMouseEvent):
@@ -139,21 +139,17 @@ class Viewer(QOpenGLWindow):
             self.draw(viewport, self.con)
 
     def sim(self):
-        last_time = time.time()
+        t0 = time.time()
 
         while self.sim_running:
-            current_time = time.time()
-            dt = current_time - last_time
+            sim_time = time.time() - t0
 
-            if dt >= self.interval:
-                self.time += dt
-                while self.data.time < self.time:
-                    mj.mj_step(self.model, self.data, self.step_per_ctrl)
-                    if self.ctrl is not None:
-                        self.ctrl()
-                last_time = current_time
-            else:
-                time.sleep(0.0001)
+            while self.data.time < sim_time:
+                mj.mj_step(self.model, self.data, self.step_per_ctrl)
+                if self.ctrl is not None:
+                    self.ctrl()
+
+            time.sleep(0.001)
 
     def start_sim(self):
         if not self.sim_running:

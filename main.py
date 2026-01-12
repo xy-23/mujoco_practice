@@ -30,13 +30,7 @@ class Controller:
         self.s_pressed = False
         self.d_pressed = False
 
-        self.time = 0
-
     def ctrl(self):
-        if self.time > self.data.time:
-            exit(1)
-        self.time = self.data.time
-
         d = self.data
 
         q = d.body("torso").xquat
