@@ -166,10 +166,8 @@ class Viewer(QOpenGLWindow):
     def run(self):
         self.show()
         self.start_sim()
-        try:
-            app.exec()
-        finally:
-            self.stop_sim()
+        app.exec()
+        self.stop_sim()
 
 
 if __name__ == "__main__":
