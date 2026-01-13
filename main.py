@@ -1,3 +1,4 @@
+import numpy as np
 import mujoco as mj
 from scipy.spatial.transform import Rotation
 
@@ -69,14 +70,30 @@ class Controller:
         d.ctrl[1] = self.torque + self.turn
 
     def draw(self, viewport: mj.MjrRect, con: mj.MjrContext):
-        mj.mjr_overlay(
-            mj.mjtFont.mjFONT_NORMAL,
-            mj.mjtGridPos.mjGRID_TOPLEFT,
-            viewport,
-            "t",
-            f"{self.data.time:.3f}",
-            con,
-        )
+
+        theta = None
+        for i in range(self.data.ncon):
+            cont = self.data.contact[i]
+            if (
+                cont.geom1 == self.model.geom("floor_geom").id
+                and cont.geom2 == self.model.geom("left_wheel_geom").id
+            ):
+                confrc = np.zeros(6, dtype=np.float64)
+                mj.mj_contactForce(self.model, self.data, i, confrc)
+
+                theta = np.atan2(confrc[2], confrc[0])
+                break
+
+        if theta is not None:
+            w = self.data.joint("left_wheel_joint").qvel[0]
+            mj.mjr_overlay(
+                mj.mjtFont.mjFONT_NORMAL,
+                mj.mjtGridPos.mjGRID_TOPLEFT,
+                viewport,
+                "t\ntheta\ntorque\nvset\nw",
+                f"{self.data.time:.3f}\n{theta*57.3:.1f}\n{self.torque:.3f}\n{self.vset:.1f}\n{w:.3f}",
+                con,
+            )
 
     def key_press(self, event: Viewer.KeyEvent):
         if event.key() == Viewer.Keys.Key_W:
@@ -106,13 +123,18 @@ if __name__ == "__main__":
 
     model = wip.make_model()
     model.opt.timestep = SIM_DT
+    model.vis.map.force = 0.1  # m/N
+
     data = mj.MjData(model)
+    opt = mj.MjvOption()
+    opt.flags[mj.mjtVisFlag.mjVIS_CONTACTFORCE] = True
 
     controller = Controller(model, data, CTRL_DT)
 
     viewer = Viewer(
         model,
         data,
+        opt=opt,
         step_per_ctrl=STEP_PER_CTRL,
         ctrl=controller.ctrl,
         draw=controller.draw,

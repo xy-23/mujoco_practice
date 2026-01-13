@@ -46,7 +46,10 @@ wheel_material = spec.add_material(
 wheel_material.textures[mj.mjtTextureRole.mjTEXROLE_RGB] = "wheel_texture"
 
 spec.worldbody.add_geom(
-    type=mj.mjtGeom.mjGEOM_PLANE, size=[0, 0, 1], material="floor_material"
+    name="floor_geom",
+    type=mj.mjtGeom.mjGEOM_PLANE,
+    size=[0, 0, 1],
+    material="floor_material",
 )
 
 torso = spec.worldbody.add_body(
@@ -85,6 +88,7 @@ left_wheel = torso.add_body(
     euler=[-90, 0, 0],
 )
 left_wheel.add_geom(
+    name="left_wheel_geom",
     type=mj.mjtGeom.mjGEOM_CYLINDER,
     size=WHEEL_SIZE,
     mass=WHEEL_MASS,
@@ -102,6 +106,7 @@ right_wheel = torso.add_body(
     euler=[-90, 0, 0],
 )
 right_wheel.add_geom(
+    name="right_wheel_geom",
     type=mj.mjtGeom.mjGEOM_CYLINDER,
     size=WHEEL_SIZE,
     mass=WHEEL_MASS,

@@ -36,6 +36,7 @@ class Viewer(QOpenGLWindow):
         model: mj.MjModel,
         data: mj.MjData,
         *,
+        opt: mj.MjvOption = mj.MjvOption(),
         fps: int = 60,
         step_per_ctrl: int = 1,
         ctrl: Callable[[None], None] = None,
@@ -51,10 +52,11 @@ class Viewer(QOpenGLWindow):
         self._pos = None
         self.sim_running = False
         self.sim_thread = None
+        self.lock = threading.Lock()
 
         self.model = model
         self.data = data
-        self.opt = mj.MjvOption()
+        self.opt = opt
         self.scn = mj.MjvScene(model, maxgeom=10000)
         self.cam = mj.MjvCamera()
         mj.mjv_defaultFreeCamera(model, self.cam)
@@ -124,6 +126,10 @@ class Viewer(QOpenGLWindow):
 
     @override
     def paintGL(self) -> None:
+        locked = self.lock.acquire(timeout=1)
+        if not locked:
+            return
+
         mj.mjv_updateScene(
             self.model,
             self.data,
@@ -133,21 +139,25 @@ class Viewer(QOpenGLWindow):
             mj.mjtCatBit.mjCAT_ALL,
             self.scn,
         )
+
         viewport = mj.MjrRect(0, 0, int(self._w * self._s), int(self._h * self._s))
         mj.mjr_render(viewport, self.scn, self.con)
+
         if self.draw is not None:
             self.draw(viewport, self.con)
+
+        self.lock.release()
 
     def sim(self):
         t0 = time.time()
 
         while self.sim_running:
-            sim_time = time.time() - t0
-
-            while self.data.time < sim_time:
-                mj.mj_step(self.model, self.data, self.step_per_ctrl)
-                if self.ctrl is not None:
-                    self.ctrl()
+            with self.lock:
+                sim_time = time.time() - t0
+                while self.data.time < sim_time:
+                    mj.mj_step(self.model, self.data, self.step_per_ctrl)
+                    if self.ctrl is not None:
+                        self.ctrl()
 
             time.sleep(0.001)
 
